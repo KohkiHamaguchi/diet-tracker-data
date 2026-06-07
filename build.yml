@@ -1,0 +1,41 @@
+name: build-diet-artifacts
+
+# diet.json が変わったら xlsx と html を作り直す。
+# 生成物(diet.xlsx / index.html)はパスフィルタ対象外なので、
+# それらのコミットでは再実行されず、無限ループにならない。
+on:
+  push:
+    paths:
+      - "data/diet.json"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install openpyxl
+
+      - name: Build xlsx + html
+        run: python build.py
+
+      - name: Commit generated files
+        run: |
+          git config user.name  "diet-bot"
+          git config user.email "diet-bot@users.noreply.github.com"
+          git add data/diet.xlsx index.html
+          if git diff --staged --quiet; then
+            echo "no changes"
+          else
+            git commit -m "build: regenerate xlsx + html"
+            git push
+          fi
